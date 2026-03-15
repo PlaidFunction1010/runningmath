@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高中數學互動學習網 - 資料庫連動版</title>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root { --sidebar-width: 280px; --primary-color: #2c3e50; --accent-color: #3498db; --bg-color: #f8f9fa; }
+        body { font-family: 'Noto Sans TC', sans-serif; margin: 0; display: flex; height: 100vh; background-color: var(--bg-color); }
+        #sidebar { width: var(--sidebar-width); background-color: var(--primary-color); color: white; display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
+        #sidebar h2 { padding: 20px; font-size: 1.2rem; border-bottom: 1px solid rgba(255,255,255,0.1); margin: 0; }
+        .unit-item { padding: 15px 20px; cursor: pointer; transition: all 0.3s; border-left: 4px solid transparent; }
+        .unit-item:hover { background-color: rgba(255,255,255,0.1); }
+        .unit-item.active { background-color: var(--accent-color); border-left: 4px solid #fff; }
+        #main-content { flex-grow: 1; padding: 40px; overflow-y: auto; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; position: relative; }
+        .theme-badge { background: #e8f4fd; color: #2980b9; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; margin-bottom: 10px; display: inline-block; font-weight: bold; }
+        .problem-text { font-size: 1.15rem; margin-bottom: 20px; line-height: 1.8; }
+        input[type="text"] { padding: 10px; width: 200px; border: 2px solid #ddd; border-radius: 6px; margin-right: 10px; }
+        button { padding: 10px 18px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-right: 5px; }
+        .btn-check { background: #27ae60; color: white; }
+        .btn-sol { background: #95a5a6; color: white; }
+        .sol-box { margin-top: 15px; padding: 15px; background: #fdfae6; border-left: 5px solid #f1c40f; display: none; border-radius: 4px; }
+        .feedback { margin-top: 10px; font-weight: bold; }
+        #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.5rem; color: var(--primary-color); }
+    </style>
+</head>
+<body>
+
+    <div id="loading">讀取雲端題庫中...</div>
+
+    <nav id="sidebar">
+        <h2>數學互動學習網</h2>
+        <div id="unit-list"></div>
+    </nav>
+
+    <main id="main-content">
+        <div id="display-area">
+            <div style="text-align:center; margin-top:100px;">
+                <h1>請從左側選擇單元</h1>
+                <p>資料來源：Google Sheets 雲端即時同步</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 【重要：請在此處貼上你從 Google Sheets 獲得的 CSV 連結】
+        const sheetCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQWSb95_iHHsIXR76Z62peIRuPxXBRmkb1c0H1iPyBusuRmDR_X3NYAd9XyU78toppasDIkagoszR2m/pubhtml'; 
+
+        let allProblems = [];
+
+        // 從 Google Sheets 抓取資料
+        function fetchSheetData() {
+            Papa.parse(sheetCsvUrl, {
+                download: true,
+                header: true,
+                complete: function(results) {
+                    // 過濾掉空白行，並跳過前兩列標題（PapaParse 會從 header 開始抓，所以會從數據列開始）
+                    allProblems = results.data.filter(row => row['單元名稱'] || row['Unit']);
+                    document.getElementById('loading').style.display = 'none';
+                    initSidebar();
+                }
+            });
+        }
+
+        function initSidebar() {
+            const list = document.getElementById('unit-list');
+            list.innerHTML = "";
+            // 取得所有不重複的單元名稱
+            const units = [...new Set(allProblems.map(p => p['單元名稱'] || p['Unit']))];
+            
+            units.forEach(unit => {
+                const div = document.createElement('div');
+                div.className = 'unit-item';
+                div.innerText = unit;
+                div.onclick = () => loadUnit(unit, div);
+                list.appendChild(div);
+            });
+        }
+
+        function loadUnit(unitName, element) {
+            document.querySelectorAll('.unit-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+
+            const area = document.getElementById('display-area');
+            area.innerHTML = `<h1>${unitName}</h1>`;
+
+            const problems = allProblems.filter(p => (p['單元名稱'] || p['Unit']) === unitName);
+            
+            problems.forEach((p, idx) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div class="theme-badge">${p['主題'] || p['theme'] || '例題'}</div>
+                    <div class="problem-text" id="text-${idx}">${p['題目內容，可輸入 LaTeX'] || p['Text']}</div>
+                    
+                    <input type="text" id="input-${idx}" placeholder="輸入答案">
+                    <button class="btn-check" onclick="checkAnswer(${idx}, '${p['答案'] || p['Answer']}')">對答案</button>
+                    <button class="btn-sol" onclick="toggleSol(${idx})">詳細解答</button>
+                    
+                    <div id="feedback-${idx}" class="feedback"></div>
+                    <div id="sol-${idx}" class="sol-box">
+                        <strong>解題步驟：</strong><br>
+                        ${p['詳細解答'] || p['Solution'] || '暫無解析'}
+                    </div>
+                `;
+                area.appendChild(card);
+            });
+
+            // 重新渲染 LaTeX
+            renderMathInElement(area, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "\\(", right: "\\)", display: false}
+                ]
+            });
+        }
+
+        function checkAnswer(idx, correct) {
+            const user = document.getElementById(`input-${idx}`).value.trim();
+            const f = document.getElementById(`feedback-${idx}`);
+            f.innerHTML = (user === correct) ? "✅ 正確！" : `❌ 再想想！`;
+            f.style.color = (user === correct) ? "#27ae60" : "#e74c3c";
+        }
+
+        function toggleSol(idx) {
+            const sol = document.getElementById(`sol-${idx}`);
+            sol.style.display = (sol.style.display === 'block') ? 'none' : 'block';
+        }
+
+        if (sheetCsvUrl === '這裡貼上你的連結') {
+            alert('請先在程式碼中填入你的 Google Sheets CSV 連結！');
+        } else {
+            fetchSheetData();
+        }
+    </script>
+</body>
+</html>
