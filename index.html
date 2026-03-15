@@ -8,47 +8,44 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
 
     <style>
-        :root { --sidebar-width: 280px; --primary-color: #2c3e50; --accent-color: #3498db; --bg-color: #f8f9fa; }
+        :root { --sidebar-width: 280px; --primary-color: #2c3e50; --accent-color: #3498db; --bg-color: #f8f9fa; --success-color: #27ae60; --error-color: #e74c3c; }
         body { font-family: 'Noto Sans TC', sans-serif; margin: 0; display: flex; height: 100vh; background-color: var(--bg-color); }
         
-        /* 側邊欄 */
-        #sidebar { width: var(--sidebar-width); background-color: var(--primary-color); color: white; display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
+        #sidebar { width: var(--sidebar-width); background-color: var(--primary-color); color: white; display: flex; flex-direction: column; overflow-y: auto; }
         #sidebar h2 { padding: 20px; font-size: 1.2rem; border-bottom: 1px solid rgba(255,255,255,0.1); margin: 0; }
-        .unit-item { padding: 15px 20px; cursor: pointer; transition: all 0.3s; border-left: 4px solid transparent; font-size: 0.95rem; }
+        .unit-item { padding: 15px 20px; cursor: pointer; transition: 0.3s; border-left: 4px solid transparent; }
         .unit-item:hover { background-color: rgba(255,255,255,0.1); }
         .unit-item.active { background-color: var(--accent-color); border-left: 4px solid #fff; }
         
-        /* 主內容 */
         #main-content { flex-grow: 1; padding: 40px; overflow-y: auto; }
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; }
         .theme-badge { background: #e8f4fd; color: #2980b9; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; margin-bottom: 10px; display: inline-block; font-weight: bold; }
-        .problem-text { font-size: 1.15rem; margin-bottom: 20px; line-height: 1.8; color: #333; }
         
-        /* 按鈕與輸入框 */
-        input[type="text"] { padding: 10px; width: 200px; border: 2px solid #ddd; border-radius: 6px; margin-right: 10px; font-size: 1rem; }
-        button { padding: 10px 18px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-right: 5px; transition: 0.2s; }
-        .btn-check { background: #27ae60; color: white; }
-        .btn-check:hover { background: #219150; }
-        .btn-sol { background: #95a5a6; color: white; }
+        /* 題目與選項樣式 */
+        .problem-text { font-size: 1.2rem; margin-bottom: 25px; line-height: 1.8; color: #333; }
+        .options-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .option-btn { padding: 15px; border: 2px solid #eee; border-radius: 8px; background: #fff; cursor: pointer; transition: all 0.2s; text-align: left; font-size: 1rem; }
+        .option-btn:hover { border-color: var(--accent-color); background: #f0f7ff; }
+        .option-btn.correct { background-color: var(--success-color) !important; color: white; border-color: var(--success-color); }
+        .option-btn.wrong { background-color: var(--error-color) !important; color: white; border-color: var(--error-color); }
         
         .sol-box { margin-top: 15px; padding: 15px; background: #fdfae6; border-left: 5px solid #f1c40f; display: none; border-radius: 4px; line-height: 1.7; }
-        .feedback { margin-top: 10px; font-weight: bold; font-size: 1.1rem; }
+        .btn-sol { background: #95a5a6; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
         
-        #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.2rem; color: var(--primary-color); font-weight: bold; }
+        #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold; }
+        #visitor-counter { position: fixed; bottom: 15px; left: 15px; background: rgba(0,0,0,0.8); color: white; padding: 6px 12px; border-radius: 20px; font-size: 13px; z-index: 1000; }
         
-        /* 訪客計數器 */
-        #visitor-counter { position: fixed; bottom: 15px; left: 15px; background: rgba(0,0,0,0.8); color: white; padding: 6px 12px; border-radius: 20px; font-size: 13px; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        .status-badge { float: right; font-size: 0.8rem; padding: 2px 6px; border-radius: 10px; background: #ddd; color: #666; }
+        .status-done { background: var(--success-color); color: white; }
     </style>
 </head>
 <body>
 
-    <div id="loading">📡 正在從 plaidfunction1010 的資料庫抓取題目...</div>
+    <div id="loading">📡 正在同步 plaidfunction1010 的雲端題庫...</div>
 
     <nav id="sidebar">
         <h2>數學互動學習網</h2>
@@ -57,9 +54,9 @@
 
     <main id="main-content">
         <div id="display-area">
-            <div style="text-align:center; margin-top:100px; color: #7f8c8d;">
-                <h1>歡迎使用互動學習系統</h1>
-                <p>請點擊左側單元開始練習</p>
+            <div style="text-align:center; margin-top:100px; color: #95a5a6;">
+                <h1>歡迎回來，老師！</h1>
+                <p>請選擇左側單元進行練習</p>
             </div>
         </div>
     </main>
@@ -70,23 +67,18 @@
     </div>
 
     <script>
-        // 自動修正後的 CSV 連結
         const sheetCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTA19q_bXVl7XZPAf4ImCJEWZfs_zJwFuSFsBmAf3n-_I_zrkb8cuzyxMWrUJhpBB7xpnQ9baoEDh1U/pub?output=csv'; 
-
         let allProblems = [];
 
+        // 初始化：讀取資料
         function fetchSheetData() {
             Papa.parse(sheetCsvUrl, {
                 download: true,
                 header: true,
                 complete: function(results) {
-                    // 【修正點】results.data[0] 是試算表第 2 列。使用 .slice(1) 從試算表第 3 列開始抓取。
                     allProblems = results.data.slice(1).filter(row => row['單元名稱'] || row['Unit']);
                     document.getElementById('loading').style.display = 'none';
                     initSidebar();
-                },
-                error: function(err) {
-                    document.getElementById('loading').innerText = "❌ 讀取失敗，請檢查 CSV 連結是否正確。";
                 }
             });
         }
@@ -95,7 +87,6 @@
             const list = document.getElementById('unit-list');
             list.innerHTML = "";
             const units = [...new Set(allProblems.map(p => p['單元名稱'] || p['Unit']))];
-            
             units.forEach(unit => {
                 const div = document.createElement('div');
                 div.className = 'unit-item';
@@ -105,6 +96,7 @@
             });
         }
 
+        // 核心邏輯：解析題目與選項
         function loadUnit(unitName, element) {
             document.querySelectorAll('.unit-item').forEach(el => el.classList.remove('active'));
             element.classList.add('active');
@@ -115,48 +107,68 @@
             const problems = allProblems.filter(p => (p['單元名稱'] || p['Unit']) === unitName);
             
             problems.forEach((p, idx) => {
+                const rawText = p['題目內容，可輸入 LaTeX'] || p['Text'] || '';
+                // 自動切割題目與選項：尋找第一個出現 (1) 的位置
+                const optionStart = rawText.search(/\(\d\)/);
+                let questionBody = rawText;
+                let optionsArray = [];
+
+                if (optionStart !== -1) {
+                    questionBody = rawText.substring(0, optionStart);
+                    const optionsPart = rawText.substring(optionStart);
+                    // 使用正則表達式切分 (1), (2), (3)...
+                    optionsArray = optionsPart.split(/\s*(?=\(\d\))/).filter(s => s.trim() !== "");
+                }
+
                 const card = document.createElement('div');
                 card.className = 'card';
+                const isDone = localStorage.getItem(`done-${unitName}-${idx}`);
+
                 card.innerHTML = `
-                    <div class="theme-badge">${p['主題'] || p['theme'] || '例題'}</div>
-                    <div class="problem-text" id="text-${idx}">${p['題目內容，可輸入 LaTeX'] || p['Text'] || '無內容'}</div>
+                    <div class="theme-badge">${p['主題'] || '例題'}</div>
+                    ${isDone ? '<span class="status-badge status-done">已完成</span>' : '<span class="status-badge">未練習</span>'}
+                    <div class="problem-text">${questionBody}</div>
                     
-                    <input type="text" id="input-${idx}" placeholder="輸入答案">
-                    <button class="btn-check" onclick="checkAnswer(${idx}, '${(p['答案'] || p['Answer'] || '').trim()}')">對答案</button>
+                    <div class="options-container" id="opts-${idx}">
+                        ${optionsArray.map((opt, oIdx) => {
+                            // 提取數字作為答案判定
+                            const optNum = opt.match(/\((\d)\)/)[1];
+                            return `<button class="option-btn" onclick="checkChoice(this, '${optNum}', '${p['答案'] || p['Answer']}', '${unitName}', ${idx})">${opt}</button>`;
+                        }).join('')}
+                    </div>
+
                     <button class="btn-sol" onclick="toggleSol(${idx})">詳細解答</button>
-                    
-                    <div id="feedback-${idx}" class="feedback"></div>
                     <div id="sol-${idx}" class="sol-box">
-                        <strong>解題步驟：</strong><br>
-                        ${p['詳細解答'] || p['Solution'] || '暫無解析'}
+                        <strong>解題步驟：</strong><br>${p['詳細解答'] || '暫無解析'}
                     </div>
                 `;
                 area.appendChild(card);
             });
 
-            // 【修正點】強化 LaTeX 渲染，支援 $ 符號
-            if (window.renderMathInElement) {
-                renderMathInElement(area, {
-                    delimiters: [
-                        {left: "$$", right: "$$", display: true},
-                        {left: "$", right: "$", display: false},
-                        {left: "\\(", right: "\\)", display: false},
-                        {left: "\\[", right: "\\]", display: true}
-                    ],
-                    throwOnError: false
-                });
-            }
+            renderMathInElement(area, {
+                delimiters: [
+                    {left: "$$", right: "$$", display: true},
+                    {left: "$", right: "$", display: false},
+                    {left: "\\(", right: "\\)", display: false}
+                ],
+                throwOnError: false
+            });
         }
 
-        function checkAnswer(idx, correct) {
-            const user = document.getElementById(`input-${idx}`).value.trim();
-            const f = document.getElementById(`feedback-${idx}`);
-            if (user === correct) {
-                f.innerHTML = "✅ 太強了！答對囉！";
-                f.style.color = "#27ae60";
+        function checkChoice(btn, chosen, correct, unit, idx) {
+            // 處理答案格式，統一轉為純數字字串
+            const cleanCorrect = correct.replace(/[^0-9]/g, '');
+            const cleanChosen = chosen.replace(/[^0-9]/g, '');
+
+            if (cleanChosen === cleanCorrect) {
+                btn.classList.add('correct');
+                localStorage.setItem(`done-${unit}-${idx}`, 'true');
+                // 更新狀態標籤
+                btn.closest('.card').querySelector('.status-badge').className = 'status-badge status-done';
+                btn.closest('.card').querySelector('.status-badge').innerText = '已完成';
             } else {
-                f.innerHTML = `❌ 再檢查一下喔！`;
-                f.style.color = "#e74c3c";
+                btn.classList.add('wrong');
+                setTimeout(() => btn.classList.remove('wrong'), 500);
             }
         }
 
