@@ -57,77 +57,84 @@
     </main>
 
     <script>
-        // 【重要：請在此處貼上你從 Google Sheets 獲得的 CSV 連結】
-        const sheetCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTA19q_bXVl7XZPAf4ImCJEWZfs_zJwFuSFsBmAf3n-_I_zrkb8cuzyxMWrUJhpBB7xpnQ9baoEDh1U/pub?output=csv'; 
+      // 【重要：請在此處貼上你從 Google Sheets 獲得的 CSV 連結】
+const sheetCsvUrl = '這裡貼上你的連結'; 
 
-        let allProblems = [];
+let allProblems = [];
 
-        // 從 Google Sheets 抓取資料
-        function fetchSheetData() {
-            Papa.parse(sheetCsvUrl, {
-                download: true,
-                header: true,
-                complete: function(results) {
-                    // 過濾掉空白行，並跳過前兩列標題（PapaParse 會從 header 開始抓，所以會從數據列開始）
-                    allProblems = results.data.filter(row => row['單元名稱'] || row['Unit']);
-                    document.getElementById('loading').style.display = 'none';
-                    initSidebar();
-                }
-            });
-        }
-
-        function initSidebar() {
-            const list = document.getElementById('unit-list');
-            list.innerHTML = "";
-            // 取得所有不重複的單元名稱
-            const units = [...new Set(allProblems.map(p => p['單元名稱'] || p['Unit']))];
+// 從 Google Sheets 抓取資料
+function fetchSheetData() {
+    Papa.parse(sheetCsvUrl, {
+        download: true,
+        header: true,
+        complete: function(results) {
+            // 【修正：跳過第二列說明列，從第三列(索引1)開始抓取】
+            // results.data[0] 對應試算表第 2 列（通常是英文標題或說明）
+            // .slice(1) 代表從結果的第二筆資料開始，即試算表第 3 列
+            allProblems = results.data.slice(1).filter(row => row['單元名稱'] || row['Unit']);
             
-            units.forEach(unit => {
-                const div = document.createElement('div');
-                div.className = 'unit-item';
-                div.innerText = unit;
-                div.onclick = () => loadUnit(unit, div);
-                list.appendChild(div);
-            });
+            document.getElementById('loading').style.display = 'none';
+            initSidebar();
         }
+    });
+}
 
-        function loadUnit(unitName, element) {
-            document.querySelectorAll('.unit-item').forEach(el => el.classList.remove('active'));
-            element.classList.add('active');
+function initSidebar() {
+    const list = document.getElementById('unit-list');
+    list.innerHTML = "";
+    const units = [...new Set(allProblems.map(p => p['單元名稱'] || p['Unit']))];
+    
+    units.forEach(unit => {
+        const div = document.createElement('div');
+        div.className = 'unit-item';
+        div.innerText = unit;
+        div.onclick = () => loadUnit(unit, div);
+        list.appendChild(div);
+    });
+}
 
-            const area = document.getElementById('display-area');
-            area.innerHTML = `<h1>${unitName}</h1>`;
+function loadUnit(unitName, element) {
+    document.querySelectorAll('.unit-item').forEach(el => el.classList.remove('active'));
+    element.classList.add('active');
 
-            const problems = allProblems.filter(p => (p['單元名稱'] || p['Unit']) === unitName);
+    const area = document.getElementById('display-area');
+    area.innerHTML = `<h1>${unitName}</h1>`;
+
+    const problems = allProblems.filter(p => (p['單元名稱'] || p['Unit']) === unitName);
+    
+    problems.forEach((p, idx) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+            <div class="theme-badge">${p['主題'] || p['theme'] || '例題'}</div>
+            <div class="problem-text" id="text-${idx}">${p['題目內容，可輸入 LaTeX'] || p['Text']}</div>
             
-            problems.forEach((p, idx) => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerHTML = `
-                    <div class="theme-badge">${p['主題'] || p['theme'] || '例題'}</div>
-                    <div class="problem-text" id="text-${idx}">${p['題目內容，可輸入 LaTeX'] || p['Text']}</div>
-                    
-                    <input type="text" id="input-${idx}" placeholder="輸入答案">
-                    <button class="btn-check" onclick="checkAnswer(${idx}, '${p['答案'] || p['Answer']}')">對答案</button>
-                    <button class="btn-sol" onclick="toggleSol(${idx})">詳細解答</button>
-                    
-                    <div id="feedback-${idx}" class="feedback"></div>
-                    <div id="sol-${idx}" class="sol-box">
-                        <strong>解題步驟：</strong><br>
-                        ${p['詳細解答'] || p['Solution'] || '暫無解析'}
-                    </div>
-                `;
-                area.appendChild(card);
-            });
+            <input type="text" id="input-${idx}" placeholder="輸入答案">
+            <button class="btn-check" onclick="checkAnswer(${idx}, '${p['答案'] || p['Answer']}')">對答案</button>
+            <button class="btn-sol" onclick="toggleSol(${idx})">詳細解答</button>
+            
+            <div id="feedback-${idx}" class="feedback"></div>
+            <div id="sol-${idx}" class="sol-box">
+                <strong>解題步驟：</strong><br>
+                ${p['詳細解答'] || p['Solution'] || '暫無解析'}
+            </div>
+        `;
+        area.appendChild(card);
+    });
 
-            // 重新渲染 LaTeX
-            renderMathInElement(area, {
-                delimiters: [
-                    {left: "$$", right: "$$", display: true},
-                    {left: "\\(", right: "\\)", display: false}
-                ]
-            });
-        }
+    // 【修正：強化 LaTeX 渲染邏輯，支援單 $ 符號】
+    renderMathInElement(area, {
+        delimiters: [
+            {left: "$$", right: "$$", display: true},
+            {left: "$", right: "$", display: false},
+            {left: "\\(", right: "\\)", display: false},
+            {left: "\\[", right: "\\]", display: true}
+        ],
+        throwOnError: false
+    });
+}
+
+// 其餘 checkAnswer 與 toggleSol 函數保持不變...
 
         function checkAnswer(idx, correct) {
             const user = document.getElementById(`input-${idx}`).value.trim();
